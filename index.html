@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>SPINNER RUNNER - Hyper Frenzy Edition</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      background-color: #050508;
+      color: #fff;
+      font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+    #game-wrapper {
+      position: relative;
+      width: 100%;
+      max-width: 440px;
+      height: 100vh;
+      max-height: 720px;
+      background: radial-gradient(circle at center, #121225 0%, #050508 100%);
+      box-shadow: 0 0 50px rgba(0, 243, 255, 0.25);
+      overflow: hidden;
+    }
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    .hud {
+      position: absolute;
+      top: 15px;
+      left: 0;
+      width: 100%;
+      padding: 0 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      pointer-events: none;
+      z-index: 10;
+    }
+    .time-box {
+      font-size: 28px;
+      font-weight: 900;
+      color: #00f3ff;
+      text-shadow: 0 0 15px rgba(0, 243, 255, 0.9);
+      line-height: 1;
+      font-family: monospace;
+    }
+    .stage-box {
+      font-size: 14px;
+      color: #ff007f;
+      font-weight: bold;
+      text-shadow: 0 0 8px rgba(255, 0, 127, 0.8);
+      margin-top: 4px;
+    }
+    #combo-popup {
+      position: absolute;
+      top: 25%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0);
+      font-size: 28px;
+      font-weight: 900;
+      color: #ffe600;
+      text-shadow: 0 0 20px #ffe600, 0 0 40px #ff0055;
+      pointer-events: none;
+      z-index: 15;
+      transition: transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s;
+      opacity: 0;
+      white-space: nowrap;
+    }
+    #overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(5, 5, 12, 0.92);
+      backdrop-filter: blur(10px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 20;
+      text-align: center;
+      padding: 20px;
+    }
+    .title {
+      font-size: 30px;
+      font-weight: 900;
+      background: linear-gradient(135deg, #00f3ff, #ff007f);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 6px;
+      letter-spacing: 2px;
+    }
+    .subtitle {
+      font-size: 12px;
+      color: #a0a0c0;
+      margin-bottom: 16px;
+    }
+    .stage-select {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-bottom: 20px;
+      width: 100%;
+      max-width: 320px;
+    }
+    .stage-btn {
+      padding: 10px 0;
+      font-size: 13px;
+      font-weight: 900;
+      border: 2px solid #00f3ff;
+      border-radius: 10px;
+      background: rgba(0, 243, 255, 0.1);
+      color: #fff;
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(0, 243, 255, 0.3);
+      transition: transform 0.1s, background 0.2s;
+    }
+    .stage-btn:active {
+      transform: scale(0.92);
+    }
+    .stage-btn.selected {
+      background: #00f3ff;
+      color: #000;
+      box-shadow: 0 0 20px #00f3ff;
+    }
+    .stage-btn.lvl11 {
+      border-color: #ff0055;
+      background: rgba(255, 0, 85, 0.25);
+      color: #ffaa00;
+      box-shadow: 0 0 15px #ff0055;
+      grid-column: span 2;
+      animation: pulseBtn 1s infinite alternate;
+    }
+    @keyframes pulseBtn {
+      0% { transform: scale(1); box-shadow: 0 0 10px #ff0055; }
+      100% { transform: scale(1.03); box-shadow: 0 0 25px #ff0055; }
+    }
+    .stage-btn.lvl11.selected {
+      background: #ff0055;
+      color: #fff;
+      box-shadow: 0 0 30px #ff0055;
+    }
+    .play-btn {
+      padding: 14px 48px;
+      font-size: 20px;
+      font-weight: 900;
+      border: none;
+      border-radius: 40px;
+      background: linear-gradient(135deg, #00f3ff, #0066ff);
+      color: #000;
+      cursor: pointer;
+      box-shadow: 0 0 30px rgba(0, 243, 255, 0.7);
+      transition: transform 0.1s;
+      margin-bottom: 16px;
+    }
+    .play-btn:active {
+      transform: scale(0.94);
+    }
+    .coffee-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 20px;
+      font-size: 13px;
+      font-weight: bold;
+      color: #000;
+      background: linear-gradient(135deg, #ffdd00, #ffaa00);
+      border: none;
+      border-radius: 25px;
+      text-decoration: none;
+      box-shadow: 0 0 15px rgba(255, 221, 0, 0.5);
+    }
+    .coffee-hud-btn {
+      position: absolute;
+      bottom: 15px;
+      right: 15px;
+      z-index: 10;
+      background: rgba(255, 221, 0, 0.15);
+      border: 1px solid #ffdd00;
+      color: #ffdd00;
+      padding: 8px 14px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: bold;
+      text-decoration: none;
+      backdrop-filter: blur(4px);
+    }
+  </style>
+</head>
+<body>
+
+  <div id="game-wrapper">
+    <div class="hud">
+      <div>
+        <div id="time-display" class="time-box">00:00.00</div>
+        <div id="stage-display" class="stage-box">LEVEL 1</div>
+      </div>
+      <div id="combo-hud" style="color: #ffe600; font-weight: 900; font-size: 18px; text-shadow: 0 0 10px #ffe600;">COMBO 0</div>
+    </div>
+
+    <div id="combo-popup">GREAT!!</div>
+
+    <canvas id="cv" width="360" height="600"></canvas>
+
+    <a href="https://www.buymeacoffee.com/yos999" target="_blank" class="coffee-hud-btn">
+      ☕ Support
+    </a>
+
+    <div id="overlay">
+      <div class="title" id="overlay-title">SPINNER RUNNER</div>
+      <div class="subtitle" id="overlay-sub">HYPER SPEED & 2X LENGTH COURSES</div>
+      
+      <div class="stage-select" id="stage-grid">
+        <!-- Level 1 ~ 11 Grid -->
+      </div>
+
+      <button class="play-btn" id="start-btn">START RACE</button>
+      
+      <a href="https://www.buymeacoffee.com/yos999" target="_blank" class="coffee-btn">
+        ☕ Buy Me a Coffee (Support)
+      </a>
+    </div>
+  </div>
+
+  <script>
+    // Web Audio Synthesizer & BGM Engine
+    const AudioEngine = {
+      ctx: null,
+      bgmTimer: null,
+      init() {
+        if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+      },
+      playJump(comboCount) {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        const scale = [261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88, 523.25, 587.33, 659.25, 783.99, 880.00];
+        const freq = scale[Math.min(comboCount, scale.length - 1)];
+
+        osc.type = comboCount >= 5 ? 'sawtooth' : 'sine';
+        osc.frequency.setValueAtTime(freq, now);
+        osc.frequency.exponentialRampToValueAtTime(freq * 1.8, now + 0.12);
+
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.12);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.12);
+      },
+      playGoal() {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(523.25, now);
+        osc.frequency.setValueAtTime(1046.50, now + 0.15);
+        gain.gain.setValueAtTime(0.5, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.4);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.4);
+      },
+      playFail() {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(220, now);
+        osc.frequency.linearRampToValueAtTime(50, now + 0.35);
+        gain.gain.setValueAtTime(0.4, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.35);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.35);
+      },
+      startBGM() {
+        if (this.bgmTimer) return;
+        const bassNotes = [110, 130.81, 146.83, 164.81];
+        let step = 0;
+        this.bgmTimer = setInterval(() => {
+          if (!this.ctx) return;
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(bassNotes[step % bassNotes.length], now);
+          gain.gain.setValueAtTime(0.08, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.18);
+          step++;
+        }, 220);
+      },
+      stopBGM() {
+        if (this.bgmTimer) {
+          clearInterval(this.bgmTimer);
+          this.bgmTimer = null;
+        }
+      }
+    };
+
+    const cv = document.getElementById('cv');
+    const ctx = cv.getContext('2d');
+
+    let state = 'START';
+    let selectedStage = 1;
+    let combo = 0;
+    let startTime = 0;
+    let elapsedTime = 0;
+
+    let nodes = [];
+    let particles = [];
+    let cameraY = 0;
+    let targetCameraY = 0;
+    let screenFlash = 0;
+
+    let currentIdx = 0;
+    let spinnerAngle = 0;
+    let spinnerSpeed = 0.08;
+
+    // Stage Grid Setup
+    const stageGrid = document.getElementById('stage-grid');
+    for (let i = 1; i <= 10; i++) {
+      const btn = document.createElement('button');
+      btn.className = `stage-btn ${i === 1 ? 'selected' : ''}`;
+      btn.innerText = `LV ${i}`;
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        document.querySelectorAll('.stage-btn').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        selectedStage = i;
+      };
+      stageGrid.appendChild(btn);
+    }
+
+    const btn11 = document.createElement('button');
+    btn11.className = 'stage-btn lvl11';
+    btn11.innerText = 'LV 11 (FRENZY)';
+    btn11.onclick = (e) => {
+      e.stopPropagation();
+      document.querySelectorAll('.stage-btn').forEach(b => b.classList.remove('selected'));
+      btn11.classList.add('selected');
+      selectedStage = 11;
+    };
+    stageGrid.appendChild(btn11);
+
+    function formatTime(ms) {
+      const totalSec = ms / 1000;
+      const min = Math.floor(totalSec / 60);
+      const sec = Math.floor(totalSec % 60);
+      const centi = Math.floor((ms % 1000) / 10);
+      return `${min.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}.${centi.toString().padStart(2, '0')}`;
+    }
+
+    function showComboPopup(text, color) {
+      const popup = document.getElementById('combo-popup');
+      popup.innerText = text;
+      popup.style.color = color || '#ffe600';
+      popup.style.transform = 'translate(-50%, -50%) scale(1.3)';
+      popup.style.opacity = '1';
+
+      setTimeout(() => {
+        popup.style.transform = 'translate(-50%, -50%) scale(0.9)';
+        popup.style.opacity = '0';
+      }, 400);
+    }
+
+    function buildCourse(stageNum) {
+      // 全コースの長さを2倍以上に拡張 (Stage 1: 24ノード, LV 11: 45ノード)
+      const totalNodes = stageNum === 11 ? 45 : (18 + stageNum * 3);
+      nodes = [{ x: cv.width / 2, y: 450, r: stageNum === 11 ? 22 : Math.max(18, 34 - stageNum), type: 'start' }];
+
+      let lastY = 450;
+      for (let i = 1; i < totalNodes; i++) {
+        lastY -= 110 + Math.random() * 25;
+        const xOffset = (Math.random() - 0.5) * (stageNum === 11 ? 180 : (100 + stageNum * 8));
+        nodes.push({
+          x: Math.max(40, Math.min(cv.width - 40, cv.width / 2 + xOffset)),
+          y: lastY,
+          r: stageNum === 11 ? 22 : Math.max(18, 34 - stageNum),
+          type: i === totalNodes - 1 ? 'goal' : 'normal'
+        });
+      }
+    }
+
+    function initGame() {
+      combo = 0;
+      spinnerAngle = 0;
+      
+      // 全体的にスピードを大幅に底上げ。LV11は超超高速＆極悪狂乱
+      spinnerSpeed = selectedStage === 11 ? 0.22 : (0.08 + selectedStage * 0.009);
+      cameraY = 0;
+      targetCameraY = 0;
+      currentIdx = 0;
+      screenFlash = 0;
+
+      buildCourse(selectedStage);
+      particles = [];
+
+      startTime = performance.now();
+      elapsedTime = 0;
+
+      AudioEngine.startBGM();
+
+      document.getElementById('stage-display').innerText = selectedStage === 11 ? 'LEVEL 11 🔥' : `LEVEL ${selectedStage}`;
+      document.getElementById('combo-hud').innerText = `COMBO 0`;
+    }
+
+    function handleTap() {
+      if (state !== 'PLAY') return;
+
+      const curr = nodes[currentIdx];
+      const next = nodes[currentIdx + 1];
+
+      if (!next) return;
+
+      const targetAngle = Math.atan2(next.y - curr.y, next.x - curr.x);
+      let diff = Math.abs(spinnerAngle - targetAngle);
+      diff = Math.atan2(Math.sin(diff), Math.cos(diff));
+
+      // 難易度調整：レベル11は超高速なため、連打すれば強引にクリアできるよう判定を適度に確保
+      const margin = selectedStage === 11 ? 0.65 : (0.48 - selectedStage * 0.015);
+
+      if (Math.abs(diff) < Math.max(0.22, margin)) {
+        // SUCCESS JUMP
+        currentIdx++;
+        combo++;
+
+        const isPerfect = Math.abs(diff) < 0.10;
+
+        if (next.type === 'goal') {
+          // GOAL CLEAR!!
+          AudioEngine.playGoal();
+          AudioEngine.stopBGM();
+          const finalTimeStr = formatTime(elapsedTime);
+
+          state = 'GAMEOVER';
+          document.getElementById('overlay-title').innerText = selectedStage === 11 ? 'ALL CLEARED!! 👑' : 'LEVEL CLEAR!! 🏆';
+          document.getElementById('overlay-sub').innerText = `TIME: ${finalTimeStr}`;
+          document.getElementById('start-btn').innerText = 'RESTART RACE';
+          document.getElementById('overlay').style.display = 'flex';
+          return;
+        }
+
+        if (isPerfect) {
+          screenFlash = 0.4;
+          showComboPopup('PERFECT!!', '#00f3ff');
+        } else {
+          AudioEngine.playJump(combo);
+
+          if (combo === 3) showComboPopup('GREAT!!', '#ffe600');
+          else if (combo === 5) showComboPopup('SUPER!!', '#ff007f');
+          else if (combo === 8) showComboPopup('FEVER!! 💥', '#ffea00');
+          else if (combo >= 10) showComboPopup('UNSTOPPABLE!! 🔥', '#ff2a5f');
+        }
+
+        if (selectedStage !== 11) {
+          spinnerSpeed = (spinnerSpeed > 0 ? 1 : -1) * (0.08 + selectedStage * 0.008 + Math.min(combo * 0.003, 0.04));
+          if (Math.random() < 0.35) spinnerSpeed *= -1;
+        }
+
+        const pCount = isPerfect ? 25 : (10 + Math.min(combo * 2, 20));
+        for (let i = 0; i < pCount; i++) {
+          particles.push({
+            x: next.x,
+            y: next.y,
+            vx: (Math.random() - 0.5) * (8 + combo * 0.5),
+            vy: (Math.random() - 0.5) * (8 + combo * 0.5),
+            color: combo >= 8 ? '#ffe600' : (isPerfect ? '#00f3ff' : '#ff007f'),
+            life: 25
+          });
+        }
+
+        if (nodes[currentIdx + 1]) {
+          spinnerAngle = Math.atan2(nodes[currentIdx + 1].y - next.y, nodes[currentIdx + 1].x - next.x) - Math.PI / 2;
+        }
+
+        targetCameraY = 450 - next.y;
+        document.getElementById('combo-hud').innerText = `COMBO ${combo}`;
+      } else {
+        // FAIL (一発アウト)
+        AudioEngine.playFail();
+        AudioEngine.stopBGM();
+        state = 'GAMEOVER';
+        document.getElementById('overlay-title').innerText = 'GAME OVER 💥';
+        document.getElementById('overlay-sub').innerText = `FAILED AT LEVEL ${selectedStage}`;
+        document.getElementById('start-btn').innerText = 'TRY AGAIN';
+        document.getElementById('overlay').style.display = 'flex';
+      }
+    }
+
+    cv.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      handleTap();
+    }, { passive: false });
+
+    cv.addEventListener('mousedown', (e) => {
+      handleTap();
+    });
+
+    document.getElementById('start-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      AudioEngine.init();
+      initGame();
+      document.getElementById('overlay').style.display = 'none';
+      state = 'PLAY';
+    });
+
+    let lastTime = performance.now();
+
+    function update(dt) {
+      if (state !== 'PLAY') return;
+
+      elapsedTime = performance.now() - startTime;
+      document.getElementById('time-display').innerText = formatTime(elapsedTime);
+
+      spinnerAngle += spinnerSpeed;
+      cameraY += (targetCameraY - cameraY) * 0.15;
+
+      if (screenFlash > 0) screenFlash -= 0.03;
+
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life--;
+        if (p.life <= 0) particles.splice(i, 1);
+      }
+    }
+
+    function render() {
+      ctx.fillStyle = `#050508`;
+      ctx.fillRect(0, 0, cv.width, cv.height);
+
+      if (screenFlash > 0) {
+        ctx.fillStyle = `rgba(0, 243, 255, ${screenFlash})`;
+        ctx.fillRect(0, 0, cv.width, cv.height);
+      }
+
+      ctx.save();
+      ctx.translate(0, cameraY);
+
+      // コースライン
+      for (let i = 0; i < nodes.length - 1; i++) {
+        ctx.strokeStyle = selectedStage === 11 ? 'rgba(255, 0, 85, 0.4)' : (combo >= 5 ? 'rgba(255, 0, 127, 0.3)' : 'rgba(255, 255, 255, 0.1)');
+        ctx.lineWidth = 3;
+        ctx.setLineDash([6, 6]);
+        ctx.beginPath();
+        ctx.moveTo(nodes[i].x, nodes[i].y);
+        ctx.lineTo(nodes[i + 1].x, nodes[i + 1].y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      // ノード描画
+      nodes.forEach((n, idx) => {
+        const isCurrent = idx === currentIdx;
+        const isNext = idx === currentIdx + 1;
+        const isGoal = n.type === 'goal';
+
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, isGoal ? 38 : n.r, 0, Math.PI * 2);
+
+        if (isGoal) {
+          ctx.fillStyle = '#ffe600';
+          ctx.shadowColor = '#ffe600';
+          ctx.shadowBlur = 15;
+        } else {
+          ctx.fillStyle = isCurrent ? '#00f3ff' : (isNext ? 'rgba(255, 0, 127, 0.25)' : 'rgba(255, 255, 255, 0.08)');
+          ctx.shadowBlur = 0;
+        }
+        ctx.fill();
+
+        ctx.lineWidth = isNext ? 4 : 2;
+        ctx.strokeStyle = isGoal ? '#ffffff' : (isCurrent ? '#ffffff' : (isNext ? '#ff007f' : 'rgba(255, 255, 255, 0.2)'));
+        ctx.stroke();
+
+        if (isGoal) {
+          ctx.font = '900 14px sans-serif';
+          ctx.fillStyle = '#000000';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('GOAL', n.x, n.y);
+        }
+
+        // ターゲットゾーン
+        if (isNext && nodes[currentIdx]) {
+          const curr = nodes[currentIdx];
+          const angleToNext = Math.atan2(n.y - curr.y, n.x - curr.x);
+          const marginVal = selectedStage === 11 ? 0.65 : (0.48 - selectedStage * 0.015);
+          ctx.beginPath();
+          ctx.arc(curr.x, curr.y, 65, angleToNext - marginVal, angleToNext + marginVal);
+          ctx.strokeStyle = selectedStage === 11 ? 'rgba(255, 0, 85, 0.9)' : 'rgba(255, 230, 0, 0.8)';
+          ctx.lineWidth = 6;
+          ctx.stroke();
+        }
+      });
+
+      // ポインター描画
+      if (nodes[currentIdx] && nodes[currentIdx].type !== 'goal') {
+        const curr = nodes[currentIdx];
+        const pointerLen = 65;
+        const tipX = curr.x + Math.cos(spinnerAngle) * pointerLen;
+        const tipY = curr.y + Math.sin(spinnerAngle) * pointerLen;
+
+        ctx.strokeStyle = selectedStage === 11 ? '#ff0055' : (combo >= 5 ? '#ffe600' : '#ff007f');
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.moveTo(curr.x, curr.y);
+        ctx.lineTo(tipX, tipY);
+        ctx.stroke();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(tipX, tipY, 8, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // 粒子描画
+      particles.forEach(p => {
+        ctx.fillStyle = p.color;
+        ctx.fillRect(p.x, p.y, 4, 4);
+      });
+
+      ctx.restore();
+    }
+
+    function loop(t) {
+      const dt = t - lastTime;
+      lastTime = t;
+
+      update(dt);
+      render();
+
+      requestAnimationFrame(loop);
+    }
+
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>
